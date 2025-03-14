@@ -3,28 +3,26 @@ import { formatDistanceToNow } from "date-fns";
 import "./App.css";
 
 const App = () => {
-  const [launches, setLaunches] = useState([]);
+  const [launches, setLaunches] = useState([]); 
+  const [displayedLaunches, setDisplayedLaunches] = useState([]); 
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [search, setSearch] = useState("");
   const [expandedLaunch, setExpandedLaunch] = useState(null);
   const containerRef = useRef(null);
+  const batchSize = 10;
+  const [index, setIndex] = useState(batchSize);
 
   useEffect(() => {
     fetchLaunches();
-  }, [page]);
+  }, []);
 
   const fetchLaunches = async () => {
-    if (!hasMore) return;
     setLoading(true);
     try {
-      const res = await fetch(
-        `https://api.spacexdata.com/v3/launches?limit=10&offset=${(page - 1) * 10}&order=desc`
-      );
+      const res = await fetch("https://api.spacexdata.com/v3/launches?order=desc");
       const data = await res.json();
-      if (data.length === 0) setHasMore(false);
-      setLaunches((prev) => [...prev, ...data]); // Append normally
+      setLaunches(data); 
+      setDisplayedLaunches(data.slice(0, batchSize)); 
     } catch (error) {
       console.error("Error fetching launches:", error);
     }
@@ -33,10 +31,10 @@ const App = () => {
 
   const handleScroll = () => {
     if (!containerRef.current || loading) return;
-
+    
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
     if (scrollTop + clientHeight >= scrollHeight - 10) {
-      setPage((prev) => prev + 1);
+      loadMore();
     }
   };
 
@@ -50,7 +48,17 @@ const App = () => {
         container.removeEventListener("scroll", handleScroll);
       }
     };
-  }, [loading]);
+  }, [loading, displayedLaunches]);
+
+  const loadMore = () => {
+    if (index >= filteredLaunches.length) return;
+    setLoading(true);
+    setTimeout(() => {
+      setDisplayedLaunches(filteredLaunches.slice(0, index + batchSize));
+      setIndex((prev) => prev + batchSize);
+      setLoading(false);
+    }, 500);
+  };
 
   const getStatus = (launch) => {
     if (launch.upcoming) return "Upcoming";
@@ -64,6 +72,11 @@ const App = () => {
   const filteredLaunches = launches.filter((launch) =>
     launch.mission_name.toLowerCase().includes(search.toLowerCase())
   );
+
+  useEffect(() => {
+    setDisplayedLaunches(filteredLaunches.slice(0, batchSize));
+    setIndex(batchSize);
+  }, [search]);
 
   return (
     <div className="p-4 mx-auto text-white min-h-screen flex flex-col justify-center items-center bg-black">
@@ -104,20 +117,15 @@ const App = () => {
         className="bg-[#00000050] shadow-lg rounded-lg overflow-y-auto w-full max-w-2xl border border-[#FFFFFF20]"
         style={{ height: "500px" }}
       >
-        {filteredLaunches.map((launch) => (
+        {displayedLaunches.map((launch) => (
           <div key={launch.launch_date_unix} className="border-b border-[#FFFFFF20]">
             <div
               className="p-4 flex justify-between items-center cursor-pointer hover:bg-[#FFFFFF] hover:text-[#000] transition duration-300"
               onClick={() => toggleExpand(launch.launch_date_unix)}
             >
-               <div className="flex items-center gap-3">
-                <img
-                  src={launch.links.mission_patch || "https://via.placeholder.com/50"}
-                  alt="Mission Patch"
-                  className="w-10 h-10 object-contain"
-                />
+              <div className="flex items-center gap-3">
                 <h2 className="text-lg font-bold">{launch.mission_name}</h2>
-                </div>
+              </div>
               <span
                 className={`px-3 py-1 text-sm font-semibold rounded-full ${
                   launch.upcoming
@@ -181,7 +189,7 @@ const App = () => {
           <div className="rounded-full h-8 w-8 border-t-2 border-gray-400 border-opacity-50 animate-spin"></div>
         </div>
       )}
-      {!hasMore && (
+      {displayedLaunches.length >= filteredLaunches.length && !loading && (
         <p className="text-center mt-4 text-gray-500">No more launches found</p>
       )}
     </div>
