@@ -110,7 +110,14 @@ const App = () => {
               className="p-4 flex justify-between items-center cursor-pointer hover:bg-[#FFFFFF] hover:text-[#000] transition duration-300"
               onClick={() => toggleExpand(launch.launch_date_unix)}
             >
-              <h2 className="text-lg font-bold ">{launch.mission_name}</h2>
+               <div className="flex items-center gap-3">
+                <img
+                  src={launch.links.mission_patch || "https://via.placeholder.com/50"}
+                  alt="Mission Patch"
+                  className="w-10 h-10 object-contain"
+                />
+                <h2 className="text-lg font-bold">{launch.mission_name}</h2>
+                </div>
               <span
                 className={`px-3 py-1 text-sm font-semibold rounded-full ${
                   launch.upcoming
